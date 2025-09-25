@@ -9,21 +9,87 @@
   <script type="module">
     import { loadData, saveData } from './supabase.js';
 
-    async function init() {
-      const container = document.getElementById("output");
-      let data = await loadData();
-      if (!data) {
-        // Preloaded dataset (walk-in, freezer, dry storage) would be inserted here
-        data = { message: "Default bakery items seeded here in code." };
-        await saveData(data);
-      }
-      container.textContent = JSON.stringify(data, null, 2);
+    let appData = null;
+
+    function showTab(tabId) {
+      document.querySelectorAll('section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
     }
-    init();
+
+    async function init() {
+      appData = await loadData();
+      if (!appData) {
+        // Seed with preloaded bakery dataset (categories/items)
+        appData = {
+          categories: {
+            "Walk-In": {
+              Fillings: [
+                { name: "Apple filling", unit: "12qt", time: "1.5h", priority: true },
+                { name: "Pastry cream", unit: "12qt", time: "45m", priority: true },
+                { name: "Boston cream", unit: "12qt", time: "45m", priority: true },
+                { name: "Pumpkin cream", unit: "12qt", time: "45m", priority: true },
+                { name: "Apple wheel filling", unit: "12qt", time: "1h", priority: true },
+                { name: "Jalapeño filling", unit: "8qt", time: "20m", priority: false },
+                { name: "Almond filling", unit: "12qt", time: "20m", priority: false }
+              ],
+              Toppings: [
+                { name: "Ganache", unit: "4qt", time: "10m", priority: true },
+                { name: "Mississippi", unit: "12qt", time: "10m", priority: false },
+                { name: "O Crumb", unit: "12qt", time: "20m", priority: false },
+                { name: "Simple Syrup", unit: "8qt", time: "30m", priority: false }
+              ],
+              Standalone: [
+                { name: "Texas", unit: "bucket", time: "30m", priority: false },
+                { name: "Bacon", unit: "8qt", time: "45m", priority: false }
+              ]
+            }
+          }
+        };
+        await saveData(appData);
+      }
+      render();
+    }
+
+    function render() {
+      const container = document.getElementById('items-list');
+      container.innerHTML = "";
+      for (const [mainCat, subs] of Object.entries(appData.categories)) {
+        const h2 = document.createElement('h2');
+        h2.textContent = mainCat;
+        container.appendChild(h2);
+        for (const [subCat, items] of Object.entries(subs)) {
+          const div = document.createElement('div');
+          div.className = "category";
+          div.innerHTML = `<h3>${subCat}</h3>`;
+          items.forEach(item => {
+            const p = document.createElement('div');
+            p.className = "item";
+            p.textContent = `${item.name} (${item.unit}) – ${item.time} ${item.priority ? "⭐" : ""}`;
+            div.appendChild(p);
+          });
+          container.appendChild(div);
+        }
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
   </script>
 </head>
 <body>
   <h1>Bakery Prep & PAR</h1>
-  <pre id="output">Loading...</pre>
+  <section id="today" class="active">
+    <p>Checklist coming here…</p>
+  </section>
+  <section id="results">
+    <p>Results summary coming here…</p>
+  </section>
+  <section id="items">
+    <div id="items-list"></div>
+  </section>
+  <nav>
+    <button onclick="showTab('today')">Today</button>
+    <button onclick="showTab('results')">Results</button>
+    <button onclick="showTab('items')">Items</button>
+  </nav>
 </body>
 </html>
