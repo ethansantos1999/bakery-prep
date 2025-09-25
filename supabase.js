@@ -5,14 +5,14 @@ const TABLE = "prep_data";
 
 export async function loadData() {
   let { data, error } = await supabase.from(TABLE).select("data").eq("id", 1).single();
-  if (error || !data) {
-    console.warn("No data found, returning null:", error);
+  if (error) {
+    console.warn("Supabase load error:", error);
     return null;
   }
-  return data.data;
+  return data?.data ?? null;
 }
 
 export async function saveData(payload) {
   const { error } = await supabase.from(TABLE).upsert({ id: 1, data: payload });
-  if (error) console.error("Save error:", error);
+  if (error) console.error("Supabase save error:", error);
 }

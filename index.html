@@ -4,92 +4,391 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Bakery Prep & PAR</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="theme-color" content="#B68E1E" />
   <script src="config.js"></script>
-  <script type="module">
-    import { loadData, saveData } from './supabase.js';
-
-    let appData = null;
-
-    function showTab(tabId) {
-      document.querySelectorAll('section').forEach(sec => sec.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-    }
-
-    async function init() {
-      appData = await loadData();
-      if (!appData) {
-        // Seed with preloaded bakery dataset (categories/items)
-        appData = {
-          categories: {
-            "Walk-In": {
-              Fillings: [
-                { name: "Apple filling", unit: "12qt", time: "1.5h", priority: true },
-                { name: "Pastry cream", unit: "12qt", time: "45m", priority: true },
-                { name: "Boston cream", unit: "12qt", time: "45m", priority: true },
-                { name: "Pumpkin cream", unit: "12qt", time: "45m", priority: true },
-                { name: "Apple wheel filling", unit: "12qt", time: "1h", priority: true },
-                { name: "Jalapeño filling", unit: "8qt", time: "20m", priority: false },
-                { name: "Almond filling", unit: "12qt", time: "20m", priority: false }
-              ],
-              Toppings: [
-                { name: "Ganache", unit: "4qt", time: "10m", priority: true },
-                { name: "Mississippi", unit: "12qt", time: "10m", priority: false },
-                { name: "O Crumb", unit: "12qt", time: "20m", priority: false },
-                { name: "Simple Syrup", unit: "8qt", time: "30m", priority: false }
-              ],
-              Standalone: [
-                { name: "Texas", unit: "bucket", time: "30m", priority: false },
-                { name: "Bacon", unit: "8qt", time: "45m", priority: false }
-              ]
-            }
-          }
-        };
-        await saveData(appData);
-      }
-      render();
-    }
-
-    function render() {
-      const container = document.getElementById('items-list');
-      container.innerHTML = "";
-      for (const [mainCat, subs] of Object.entries(appData.categories)) {
-        const h2 = document.createElement('h2');
-        h2.textContent = mainCat;
-        container.appendChild(h2);
-        for (const [subCat, items] of Object.entries(subs)) {
-          const div = document.createElement('div');
-          div.className = "category";
-          div.innerHTML = `<h3>${subCat}</h3>`;
-          items.forEach(item => {
-            const p = document.createElement('div');
-            p.className = "item";
-            p.textContent = `${item.name} (${item.unit}) – ${item.time} ${item.priority ? "⭐" : ""}`;
-            div.appendChild(p);
-          });
-          container.appendChild(div);
-        }
-      }
-    }
-
-    window.addEventListener('DOMContentLoaded', init);
-  </script>
+  <script type="module" src="supabase.js"></script>
+  <style>
+    :root{--gold:#C9A227;--gold-strong:#B68E1E;--brown:#5A3E2B;--cream:#FAF7F2;--text:#1E1B16;--muted:#6F675E;--radius:12px;--shadow:0 6px 20px rgba(0,0,0,.12);}
+    *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--text);background:linear-gradient(180deg,#f5efe5 0%,var(--cream) 60%) fixed;}
+    .app{min-height:100vh;display:flex;flex-direction:column}
+    header{position:sticky;top:0;z-index:10;background:rgba(250,247,242,.92);backdrop-filter:saturate(120%) blur(6px);border-bottom:1px solid rgba(90,62,43,.1)}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:980px;margin:0 auto}
+    .brand{font-weight:700;color:var(--brown)}
+    .actions{display:flex;gap:8px}
+    button{background:var(--gold-strong);color:#fff;border:none;border-radius:10px;padding:10px 14px;box-shadow:var(--shadow)}
+    button.ghost{background:transparent;color:var(--brown);border:1px solid var(--brown);box-shadow:none}
+    button.flat{background:transparent;color:var(--brown);border:none;box-shadow:none;padding:8px 10px}
+    .content{flex:1;max-width:980px;margin:10px auto 80px;padding:0 12px}
+    .card{background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:14px;margin:12px 0;border:1px solid rgba(0,0,0,.06)}
+    .row{display:grid;grid-template-columns:28px 1fr 90px 90px 90px 24px;gap:8px;align-items:center;padding:10px 6px;border-radius:10px;border-left:4px solid transparent}
+    .row.short{border-left-color:var(--gold);background:#fffaf0}.row.done{opacity:.6}.row+.row{border-top:1px dashed rgba(0,0,0,.06)}
+    .chk{width:20px;height:20px}.name{font-weight:600}.chip{display:inline-flex;gap:6px;font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid var(--brown);color:var(--brown);background:#fff}
+    .chip.priority{background:var(--gold-strong);color:#fff;border-color:var(--gold-strong)}.meta{color:var(--muted);font-size:12px}
+    input[type=number],input[type=text]{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(90,62,43,.25);background:#fff8ee}
+    .onhand-quick{display:flex;gap:6px;margin-top:6px}.onhand-quick button{padding:6px 8px;font-size:12px;box-shadow:none}
+    .acc{margin:12px 0}.acc h3{display:flex;justify-content:space-between;align-items:center;margin:0;font-size:16px;padding:12px;background:#fff;border-radius:10px;border:1px solid rgba(0,0,0,.06)}
+    .acc .inner{padding:8px 6px}.muted{color:var(--muted)}.toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 4px}
+    .pill{padding:6px 10px;border-radius:999px;background:#fff;border:1px solid rgba(0,0,0,.08)}.tabs{display:flex;gap:8px}
+    .tabs .tab{flex:1;text-align:center;padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.08);background:#fff}
+    .tabs .tab.active{background:var(--gold-strong);border-color:var(--gold-strong);color:#fff}.list .item{padding:12px;border-bottom:1px dashed rgba(0,0,0,.08)}
+    .item .title{font-weight:700}.item .sub{color:var(--muted);font-size:13px;margin-top:2px}.totals{padding:10px 12px;background:#fff;border-radius:10px;border:1px solid rgba(0,0,0,.06);margin:8px 0}
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid rgba(0,0,0,.1);display:flex;gap:8px;padding:8px;z-index:15}
+    .bottom-nav button{flex:1;padding:10px;border-radius:12px}.bottom-nav .active{background:var(--gold-strong);color:#fff;border:none}
+  </style>
 </head>
 <body>
-  <h1>Bakery Prep & PAR</h1>
-  <section id="today" class="active">
-    <p>Checklist coming here…</p>
-  </section>
-  <section id="results">
-    <p>Results summary coming here…</p>
-  </section>
-  <section id="items">
-    <div id="items-list"></div>
-  </section>
-  <nav>
-    <button onclick="showTab('today')">Today</button>
-    <button onclick="showTab('results')">Results</button>
-    <button onclick="showTab('items')">Items</button>
-  </nav>
+  <div class="app">
+    <header>
+      <div class="topbar">
+        <div class="brand">Bakery Prep &amp; PAR</div>
+        <div class="actions">
+          <button class="ghost" id="btnExport">Export</button>
+          <button class="ghost" id="btnImport">Import</button>
+          <input type="file" id="fileImport" style="position:absolute;opacity:0;width:1px;height:1px" accept="application/json" />
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div id="screen-today" class="screen">
+        <div class="toolbar card">
+          <div class="pill" id="datePill">Today</div>
+          <div>
+            <button class="ghost" id="btnReset">Reset Today</button>
+            <button id="btnCalc">Calculate Prep</button>
+          </div>
+        </div>
+        <div id="todayContent"></div>
+      </div>
+
+      <div id="screen-results" class="screen" style="display:none;">
+        <div class="card">
+          <div class="tabs">
+            <button class="tab active" data-tab="full">Full</button>
+            <button class="tab" data-tab="priority">Priority</button>
+            <button class="tab" data-tab="next">Next-Day</button>
+          </div>
+          <div class="totals">
+            <div><strong>Total scheduled:</strong> <span id="totalScheduled">0m</span> of <strong>14h 30m</strong> (2 people, 45m breaks each)</div>
+            <div class="muted" id="bufferLine">Buffer: 14h 30m</div>
+          </div>
+        </div>
+        <div class="card list" id="resultsList"></div>
+      </div>
+
+      <div id="screen-items" class="screen" style="display:none;">
+        <div class="card">
+          <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+            <span>Items</span>
+            <button id="btnAdd">Add New Item</button>
+          </div>
+          <div class="muted" style="margin-top:-6px">Units are typed (free text). PARs are set on the Today screen and persist to Supabase; only today's checklist is local.</div>
+        </div>
+        <div id="itemsList"></div>
+      </div>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="active" data-screen="today">Today</button>
+      <button data-screen="results">Results</button>
+      <button data-screen="items">Items</button>
+    </nav>
+  </div>
+
+  <script type="module">
+    import { loadData as sbLoad, saveData as sbSave } from './supabase.js';
+
+    // --- Seed dataset (ALL your items) ---
+    function seed(){
+      const mk = (loc, sub, name, unit, batchYield, minutesPerBatch, priority=false, dayBefore=false)=>(
+        {id: crypto.randomUUID(), loc, sub, name, unit, batchYield, minutesPerBatch, priority, dayBefore}
+      );
+      const items = [];
+
+      // Walk-in / Fillings
+      items.push(mk('Walk-in','Fillings','Apple filling','12-qt',1,90,true,true));
+      items.push(mk('Walk-in','Fillings','Pastry cream','12-qt',1,45,true,true));
+      items.push(mk('Walk-in','Fillings','Boston cream','12-qt',1,45,true,true));
+      items.push(mk('Walk-in','Fillings','Pumpkin cream','12-qt',1,45,true,true));
+      items.push(mk('Walk-in','Fillings','Apple wheel filling','12-qt',1,60,true,false));
+      items.push(mk('Walk-in','Fillings','Jalapeño filling','8-qt',1,20,false,false));
+      items.push(mk('Walk-in','Fillings','Almond filling','12-qt',1,20,false,false));
+
+      // Walk-in / Toppings
+      items.push(mk('Walk-in','Toppings','Ganache','4-qt',1,10,true,false));
+      items.push(mk('Walk-in','Toppings','Mississippi','12-qt',1,10,false,false));
+      items.push(mk('Walk-in','Toppings','O Crumb','12-qt',1,20,false,false));
+      items.push(mk('Walk-in','Toppings','Simple Syrup','8-qt',1,30,false,false));
+
+      // Walk-in / Standalone Items
+      items.push(mk('Walk-in','Standalone Items','Texas','bucket',1,30,false,false));
+      items.push(mk('Walk-in','Standalone Items','Bacon','8-qt',1,45,false,false));
+
+      // Freezer / Cookies
+      items.push(mk('Freezer','Cookies','Chocolate Chip','pans',2.75,120,true,false));
+      items.push(mk('Freezer','Cookies','Oatmeal Chocolate Chip','pans',3,105,false,false));
+      items.push(mk('Freezer','Cookies','Oatmeal Raisin','pans',3,105,false,false));
+      items.push(mk('Freezer','Cookies','Crowd Pleaser','pans',2.25,120,false,false));
+      items.push(mk('Freezer','Cookies','Overachiever','pans',3,120,true,false));
+      items.push(mk('Freezer','Cookies','Ginger','pans',2.5,120,false,false));
+      items.push(mk('Freezer','Cookies','Peanut Butter','pans',3,90,false,false));
+      items.push(mk('Freezer','Cookies','Snickerdoodle','pans',3.5,150,false,false));
+      items.push(mk('Freezer','Cookies','Chocolate Peanut Butter','pans',2.5,120,false,false));
+      items.push(mk('Freezer','Cookies','Sugar','pans',2.25,120,false,false));
+      items.push(mk('Freezer','Cookies','Holiday Sugar','pans',5,180,false,false));
+
+      // Freezer / Scones
+      items.push(mk('Freezer','Scones','Chocolate Scone','pans',6,60,false,false));
+      items.push(mk('Freezer','Scones','Blueberry Scone','pans',6,60,false,false));
+      items.push(mk('Freezer','Scones','Raspberry Scone','pans',6,60,false,false));
+
+      // Freezer / Sweet Bread
+      items.push(mk('Freezer','Sweet Bread','Pumpkin Chip','loaves',60,60,true,false));
+      items.push(mk('Freezer','Sweet Bread','Pumpkin','loaves',60,60,true,false));
+      items.push(mk('Freezer','Sweet Bread','Banana Chip','loaves',31,45,false,false));
+      items.push(mk('Freezer','Sweet Bread','Banana','loaves',31,45,false,false));
+      items.push(mk('Freezer','Sweet Bread','Zucchini','loaves',40,60,false,false));
+      items.push(mk('Freezer','Sweet Bread','Classic Coffee Cake','loaves',72,150,false,false));
+      items.push(mk('Freezer','Sweet Bread','Apple Coffee Cake','loaves',16,30,false,false));
+
+      // Freezer / Bread
+      items.push(mk('Freezer','Bread','Jalapeño Cheese','loaves',26,180,false,true));
+      items.push(mk('Freezer','Bread','GF','loaves',24,90,false,true));
+
+      // Freezer / Bars
+      items.push(mk('Freezer','Bars','Mississippi','half pans',4,90,false,false));
+      items.push(mk('Freezer','Bars','Carmelita','full pans',4,120,true,false));
+      items.push(mk('Freezer','Bars','Lemon','half pans',6,120,true,false));
+      items.push(mk('Freezer','Bars','Peanut Butter Marshmallow','half pans',4,120,false,false));
+      items.push(mk('Freezer','Bars','Fudge','half pans',4,90,true,false));
+      items.push(mk('Freezer','Bars','Dubai','half pans',4,60,false,false));
+
+      // Freezer / Pie
+      items.push(mk('Freezer','Pie','French Silk','pies',10,120,true,true));
+
+      // Freezer / Cupcakes
+      items.push(mk('Freezer','Cupcakes','Vanilla Cupcake','dozen',14,60,false,false));
+      items.push(mk('Freezer','Cupcakes','GF Vanilla Cupcake','dozen',14,60,false,false));
+      items.push(mk('Freezer','Cupcakes','Chocolate Cupcake','dozen',5,60,false,false));
+      items.push(mk('Freezer','Cupcakes','Red Velvet Cupcake','dozen',11.5,60,false,false));
+      items.push(mk('Freezer','Cupcakes','Carrot Cupcake','dozen',15,60,false,false));
+
+      // Freezer / Cheesecake
+      items.push(mk('Freezer','Cheesecake','Brownie Cheesecake','batches',1,150,true,false));
+      items.push(mk('Freezer','Cheesecake','Classic Cheesecake','batches',1,150,true,false));
+      items.push(mk('Freezer','Cheesecake','Raspberry Cheesecake','batches',1,150,true,false));
+      items.push(mk('Freezer','Cheesecake','Wild Berry Cheesecake','batches',1,150,true,false));
+      items.push(mk('Freezer','Cheesecake','Pumpkin Cheesecake','batches',1,150,true,false));
+
+      // Dry Prepped Items / Cinnamon Roll Ingredients
+      items.push(mk('Dry Prepped Items','Cinnamon Roll Ingredients','Orange filling','12-qt',1,10,true,false));
+      items.push(mk('Dry Prepped Items','Cinnamon Roll Ingredients','Maple filling','12-qt',1,10,true,false));
+      items.push(mk('Dry Prepped Items','Cinnamon Roll Ingredients','Pumpkin filling','12-qt',1,10,true,false));
+      items.push(mk('Dry Prepped Items','Cinnamon Roll Ingredients','Sticky caramel','12-qt',1,60,true,true));
+      items.push(mk('Dry Prepped Items','Cinnamon Roll Ingredients','Maple icing','18-qt',1,15,true,false));
+      items.push(mk('Dry Prepped Items','Cinnamon Roll Ingredients','OG icing','buckets',2,20,true,false));
+      items.push(mk('Dry Prepped Items','Cinnamon Roll Ingredients','Lemon icing','18-qt',1,10,true,false));
+      items.push(mk('Dry Prepped Items','Cinnamon Roll Ingredients','Orange icing','12-qt',1,10,true,false));
+      items.push(mk('Dry Prepped Items','Cinnamon Roll Ingredients','Nutmeg icing','12-qt',1,10,true,false));
+
+      // Dry Prepped Items / Standalone
+      items.push(mk('Dry Prepped Items','Standalone','Salted caramel','12-qt',1,60,true,true));
+      items.push(mk('Dry Prepped Items','Standalone','Classic Crumb','18-qt',1,15,false,false));
+      items.push(mk('Dry Prepped Items','Standalone','Vanilla bean','18-qt',1,10,false,false));
+      items.push(mk('Dry Prepped Items','Standalone','Chocolate','18-qt',1,10,false,false));
+      items.push(mk('Dry Prepped Items','Standalone','Sugar cookie','18-qt',1,10,false,false));
+      items.push(mk('Dry Prepped Items','Standalone','Croutons','18-qt',1,90,false,true));
+      items.push(mk('Dry Prepped Items','Standalone','Granola','pans',15,60,true,true));
+
+      return { items, pars:{}, settings:{ workers:2, breakMinutesPerWorker:45 } };
+    }
+
+    // --- Local checklist: per-day ---
+    const CHECK_PREFIX='prep_checklist_supabase_';
+    const todayStr = new Date().toISOString().slice(0,10);
+    function checklistKey(dateStr){ return CHECK_PREFIX+dateStr; }
+    function loadChecklist(dateStr){ const raw=localStorage.getItem(checklistKey(dateStr)); if(!raw){ const empty={date:dateStr,onhand:{},done:{}}; localStorage.setItem(checklistKey(dateStr),JSON.stringify(empty)); return empty;} return JSON.parse(raw); }
+    function saveChecklist(o){ localStorage.setItem(checklistKey(o.date), JSON.stringify(o)); }
+
+    // --- App state ---
+    let data = null;     // { items, pars, settings }
+    let checklist = loadChecklist(todayStr);
+
+    const $=sel=>document.querySelector(sel), $$=sel=>Array.from(document.querySelectorAll(sel));
+    function groupBy(arr,fn){ return arr.reduce((a,it)=>{const k=fn(it); (a[k]=a[k]||[]).push(it); return a;},{}); }
+    function parseNum(v){ if(v===''||v==null) return 0; const n=Number(v); return isNaN(n)?0:n; }
+    function toHM(min){ const h=Math.floor(min/60), m=Math.round(min%60); return (h>0? h+'h ':'')+(m>0? m+'m':'0m'); }
+
+    // --- Nav ---
+    $$('.bottom-nav button').forEach(b=>b.addEventListener('click',()=>{ $$('.bottom-nav button').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+      const s=b.dataset.screen; ['today','results','items'].forEach(k=>$('#screen-'+k).style.display = (k===s)?'':'none');
+      if(s==='results') renderResults(); if(s==='items') renderItems(); if(s==='today') renderToday();
+    }));
+
+    // --- Export / Import ---
+    $('#btnExport').onclick = ()=>{ const payload={schema:'sb_v1',data}; const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='prep_backup_supabase.json'; a.click(); URL.revokeObjectURL(url); };
+    $('#btnImport').onclick = ()=> $('#fileImport').click();
+    $('#fileImport').onchange = (e)=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=async()=>{
+        try{ const p=JSON.parse(r.result); if(p&&p.data){ data=p.data; await sbSave(data); renderToday(); renderItems(); alert('Import complete.'); } else alert('Invalid file.'); }
+        catch{ alert('Import failed.'); }
+      }; r.readAsText(f); };
+
+    // --- UI Rendering ---
+    (function(){ document.getElementById('datePill').textContent = new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});} )();
+
+    function rowForItem(it){
+      const row=document.createElement('div'); row.className='row';
+      const done=!!checklist.done[it.id]; const par=parseNum(data.pars[it.id]); const onh=parseNum(checklist.onhand[it.id]); const shortage=Math.max(0,par-onh);
+      if(shortage>0) row.classList.add('short'); if(done) row.classList.add('done');
+
+      const chk=document.createElement('input'); chk.type='checkbox'; chk.className='chk'; chk.checked=done;
+      chk.onchange=()=>{ checklist.done[it.id]=chk.checked; saveChecklist(checklist); row.classList.toggle('done',chk.checked); };
+
+      const name=document.createElement('div'); name.className='name'; name.innerHTML=`${it.name} <span class="chip">${it.unit}</span> ${it.priority?'<span class="chip priority">PRIORITY</span>':''}`;
+
+      const onhWrap=document.createElement('div'); onhWrap.innerHTML=`
+        <div class="meta">On-hand</div>
+        <input type="number" inputmode="decimal" step="0.01" value="${onh}" />
+        <div class="onhand-quick">
+          <button class="flat">+0.25</button><button class="flat">+0.5</button><button class="flat">+0.75</button><button class="flat">+1</button>
+        </div>`;
+      const onInput=onhWrap.querySelector('input'); onInput.oninput=()=>{ checklist.onhand[it.id]=onInput.value; saveChecklist(checklist); refreshShort(); };
+      onhWrap.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const inc=parseFloat(b.textContent.replace('+','')); const cur=parseNum(onInput.value); onInput.value=(cur+inc).toFixed(2).replace(/\.00$/,''); checklist.onhand[it.id]=onInput.value; saveChecklist(checklist); refreshShort(); });
+
+      const parWrap=document.createElement('div'); parWrap.innerHTML=`<div class="meta">PAR</div><input type="number" inputmode="decimal" step="0.01" value="${par||''}" placeholder="—" />`;
+      const parInput=parWrap.querySelector('input'); parInput.oninput=async()=>{ data.pars[it.id]=parInput.value; await sbSave(data); refreshShort(); };
+
+      const shortBox=document.createElement('div'); shortBox.innerHTML=`<div class="meta">Short</div><div><strong>${shortage>0?shortage.toFixed(2).replace(/\.00$/,''):'—'}</strong></div><div class="meta">${it.minutesPerBatch} min / batch</div>`;
+
+      const more=document.createElement('div'); more.innerHTML='<button class="flat" title="Edit">✎</button>'; more.querySelector('button').onclick=()=> openEditItem(it);
+
+      function refreshShort(){ const p=parseNum(data.pars[it.id]); const h=parseNum(checklist.onhand[it.id]); const s=Math.max(0,p-h);
+        shortBox.querySelector('strong').textContent = s>0? s.toFixed(2).replace(/\.00$/,'') : '—'; row.classList.toggle('short', s>0); }
+
+      row.append(chk,name,onhWrap,parWrap,shortBox,more); return row;
+    }
+
+    function renderToday(){
+      const c=$('#todayContent'); c.innerHTML=''; const byLoc=groupBy(data.items,it=>it.loc);
+      if(Object.keys(byLoc).length===0){ const d=document.createElement('div'); d.className='card'; d.innerHTML='<div class="muted">No items.</div>'; c.appendChild(d); return; }
+      Object.entries(byLoc).forEach(([loc,arr])=>{
+        const bySub=groupBy(arr,it=>it.sub);
+        Object.entries(bySub).forEach(([sub,items])=>{
+          const acc=document.createElement('div'); acc.className='acc card'; const h=document.createElement('h3');
+          h.innerHTML=`${loc} → ${sub}<span class="muted">(${items.length} items)</span>`; const inner=document.createElement('div'); inner.className='inner';
+          items.forEach(it=> inner.appendChild(rowForItem(it))); acc.appendChild(h); acc.appendChild(inner); c.appendChild(acc); inner.style.display='none';
+          h.addEventListener('click',()=> inner.style.display = inner.style.display==='none' ? '' : 'none');
+        });
+      });
+    }
+
+    document.getElementById('btnCalc').onclick=()=> switchScreen('results');
+    function switchScreen(n){ $$('.bottom-nav button').forEach(b=>b.classList.toggle('active', b.dataset.screen===n));
+      ['today','results','items'].forEach(s=>$('#screen-'+s).style.display = s===n ? '' : 'none'); if(n==='results') renderResults(); if(n==='items') renderItems(); if(n==='today') renderToday(); }
+
+    function calcShortages(){ const out=[]; for(const it of data.items){ const par=parseNum(data.pars[it.id]); if(!par||par<=0) continue; const onh=parseNum(checklist.onhand[it.id]);
+        const shortage=Math.max(0,par-onh); if(shortage<=0) continue; const yieldPerBatch=parseNum(it.batchYield)||1; const batches=Math.ceil(shortage/yieldPerBatch);
+        const minutes=batches*parseNum(it.minutesPerBatch); out.push({id:it.id,name:it.name,unit:it.unit,shortage,yieldPerBatch,batches,minutes,priority:!!it.priority,loc:it.loc,sub:it.sub,dayBefore:!!it.dayBefore});}
+      return out; }
+    function sortForPriority(list){ return list.slice().sort((a,b)=>{ if(a.priority!==b.priority) return a.priority?-1:1; if(b.shortage!==a.shortage) return b.shortage-a.shortage; return b.minutes-a.minutes; }); }
+
+    function renderResults(){ const full=calcShortages(); const fullSorted=sortForPriority(full); const cap=(data.settings.workers*(480-data.settings.breakMinutesPerWorker));
+      let used=0; const pr=[], nx=[]; for(const it of fullSorted){ if(used+it.minutes<=cap){ pr.push(it); used+=it.minutes;} else nx.push(it); }
+      const active=document.querySelector('.tabs .tab.active')?.dataset.tab || 'full'; updateTotals(used,cap); renderResultsList(active==='full'?fullSorted: active==='priority'?pr:nx);
+      $$('.tabs .tab').forEach(t=> t.onclick=()=>{ $$('.tabs .tab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); const which=t.dataset.tab; updateTotals(used,cap);
+        renderResultsList(which==='full'?fullSorted: which==='priority'?pr:nx); }); }
+    function updateTotals(used,cap){ document.getElementById('totalScheduled').textContent=toHM(used); document.getElementById('bufferLine').textContent='Buffer: '+toHM(Math.max(0,cap-used)); }
+    function renderResultsList(list){ const wrap=document.getElementById('resultsList'); wrap.innerHTML=''; if(list.length===0){ wrap.innerHTML='<div class="muted" style="padding:12px">No items are short vs PAR.</div>'; return; }
+      const byLoc=groupBy(list,x=>x.loc); Object.entries(byLoc).forEach(([loc,arrL])=>{ const card=document.createElement('div'); card.className='card'; const h=document.createElement('div'); h.className='section-title'; h.textContent=loc; card.appendChild(h);
+        const bySub=groupBy(arrL,x=>x.sub); Object.entries(bySub).forEach(([sub,arrS])=>{ const subH=document.createElement('div'); subH.className='meta'; subH.style.margin='8px 0 6px'; subH.textContent='— '+sub+' —'; card.appendChild(subH);
+          arrS.forEach(it=>{ const el=document.createElement('div'); el.className='item'; const qty=(it.batches*it.yieldPerBatch).toFixed(2).replace(/\.00$/,'');
+            el.innerHTML=`<div class="title">${it.name} <span class="chip">${it.unit}</span> ${it.priority?'<span class="chip priority">PRIORITY</span>':''}</div>
+              <div class="sub">Short ${it.shortage.toFixed(2).replace(/\\.00$/,'')} → suggest <strong>${it.batches}</strong> batch${it.batches>1?'es':''} (≈ ${qty} ${it.unit}) — <strong>${toHM(it.minutes)}</strong></div>`;
+            card.appendChild(el); }); }); wrap.appendChild(card); }); }
+
+    function renderItems(){ const host=document.getElementById('itemsList'); host.innerHTML=''; const card=document.createElement('div'); card.className='card'; const list=document.createElement('div');
+      data.items.forEach(it=>{ const row=document.createElement('div'); row.className='item'; row.innerHTML=`
+          <div class="title">${it.name} <span class="chip">${it.unit}</span> ${it.priority?'<span class="chip priority">PRIORITY</span>':''}</div>
+          <div class="sub">${it.loc} → ${it.sub} · Yield: ${it.batchYield} ${it.unit}/batch · ${it.minutesPerBatch} min/batch · ${it.dayBefore?'made day before':''}</div>
+          <div style="margin-top:6px"><button class="ghost">Edit</button></div>`; row.querySelector('button').onclick=()=>openEditItem(it); list.appendChild(row); });
+      card.appendChild(list); host.appendChild(card); }
+
+    function openEditItem(it){ const modal=document.createElement('div'); Object.assign(modal.style,{position:'fixed',inset:'0',background:'rgba(0,0,0,.35)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50});
+      const pane=document.createElement('div'); pane.className='card'; pane.style.maxWidth='520px'; pane.style.width='92%'; pane.innerHTML=`
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center"><span>Edit Item</span><button class="ghost" id="closeEdit">Close</button></div>
+        <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label>Location<input type="text" value="${it.loc}" id="e_loc"/></label>
+          <label>Subcategory<input type="text" value="${it.sub}" id="e_sub"/></label>
+          <label>Item Name<input type="text" value="${it.name}" id="e_name"/></label>
+          <label>Unit<input type="text" value="${it.unit}" id="e_unit"/></label>
+          <label>Batch yield<input type="number" step="0.01" value="${it.batchYield}" id="e_yield"/></label>
+          <label>Minutes per batch<input type="number" step="1" value="${it.minutesPerBatch}" id="e_min"/></label>
+          <label><input type="checkbox" ${it.priority?'checked':''} id="e_pri"/> Priority</label>
+          <label><input type="checkbox" ${it.dayBefore?'checked':''} id="e_day"/> Made day before</label>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="ghost" id="e_delete">Delete</button><button id="e_save">Save</button></div>`;
+      modal.appendChild(pane); document.body.appendChild(modal);
+      pane.querySelector('#closeEdit').onclick=()=>document.body.removeChild(modal);
+      pane.querySelector('#e_delete').onclick=async()=>{ if(confirm('Delete item?')){ data.items=data.items.filter(x=>x.id!==it.id); delete data.pars[it.id]; await sbSave(data); renderItems(); renderToday(); document.body.removeChild(modal); } };
+      pane.querySelector('#e_save').onclick=async()=>{ it.loc=pane.querySelector('#e_loc').value.trim(); it.sub=pane.querySelector('#e_sub').value.trim(); it.name=pane.querySelector('#e_name').value.trim(); it.unit=pane.querySelector('#e_unit').value.trim(); it.batchYield=parseNum(pane.querySelector('#e_yield').value); it.minutesPerBatch=parseNum(pane.querySelector('#e_min').value); it.priority=pane.querySelector('#e_pri').checked; it.dayBefore=pane.querySelector('#e_day').checked; await sbSave(data); renderItems(); renderToday(); document.body.removeChild(modal); };
+    }
+
+    document.getElementById('btnAdd').addEventListener('click', ()=>{
+      const modal=document.createElement('div'); Object.assign(modal.style,{position:'fixed',inset:'0',background:'rgba(0,0,0,.35)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50});
+      const pane=document.createElement('div'); pane.className='card'; pane.style.maxWidth='520px'; pane.style.width='92%'; pane.innerHTML=`
+        <div class="section-title"><span>Add New Item</span><button class="ghost" id="closeAdd">Close</button></div>
+        <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label>Location<input type="text" id="a_loc" placeholder="Walk-in / Freezer / Dry Prepped"/></label>
+          <label>Subcategory<input type="text" id="a_sub" placeholder="Fillings, Cookies, Icings, ..."/></label>
+          <label>Item Name<input type="text" id="a_name" placeholder="e.g., Apple Pie"/></label>
+          <label>Unit (free text)<input type="text" id="a_unit" placeholder="pies, 12-qt, dozen, pans"/></label>
+          <label>Batch yield (in unit)<input type="number" step="0.01" id="a_yield" placeholder="e.g., 10"/></label>
+          <label>Minutes per batch<input type="number" step="1" id="a_min" placeholder="e.g., 120"/></label>
+          <label><input type="checkbox" id="a_pri"/> Priority</label>
+          <label><input type="checkbox" id="a_day"/> Made day before</label>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+          <button class="ghost" id="a_cancel">Cancel</button>
+          <button id="a_save">Save Item</button>
+        </div>`;
+      modal.appendChild(pane); document.body.appendChild(modal);
+      pane.querySelector('#closeAdd').onclick=()=>document.body.removeChild(modal);
+      pane.querySelector('#a_cancel').onclick=()=>document.body.removeChild(modal);
+      pane.querySelector('#a_save').onclick=async()=>{
+        const loc=pane.querySelector('#a_loc').value.trim();
+        const sub=pane.querySelector('#a_sub').value.trim();
+        const name=pane.querySelector('#a_name').value.trim();
+        const unit=pane.querySelector('#a_unit').value.trim();
+        const by=parseNum(pane.querySelector('#a_yield').value);
+        const mpb=parseNum(pane.querySelector('#a_min').value);
+        const pri=pane.querySelector('#a_pri').checked;
+        const day=pane.querySelector('#a_day').checked;
+        if(!loc||!sub||!name||!unit||!by||!mpb){ alert('Please complete all required fields.'); return; }
+        const it={ id:crypto.randomUUID(), loc, sub, name, unit, batchYield:by, minutesPerBatch:mpb, priority:pri, dayBefore:day };
+        data.items.push(it); await sbSave(data); renderItems(); renderToday(); document.body.removeChild(modal); alert('Item added. Set its PAR on the Today screen.');
+      };
+    });
+
+    document.getElementById('btnReset').addEventListener('click', ()=>{
+      if(confirm("Reset today's on-hand & checkmarks? Items & PARs will NOT be touched.")){
+        checklist = { date: todayStr, onhand:{}, done:{} };
+        saveChecklist(checklist);
+        renderToday();
+      }
+    });
+
+    // --- Load from Supabase (or seed if empty) ---
+    async function start(){
+      let cloud = await sbLoad();
+      if(!cloud || !cloud.items || !Array.isArray(cloud.items)){
+        cloud = seed();
+        await sbSave(cloud);
+      }
+      data = cloud;
+      renderToday(); renderItems();
+    }
+    start();
+  </script>
 </body>
 </html>

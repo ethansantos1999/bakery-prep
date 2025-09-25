@@ -1,22 +1,21 @@
-# Bakery Prep & PAR (Supabase + Netlify)
+# Bakery Prep & PAR (Supabase + Netlify) — FINAL BUILD
 
-## Setup Steps
+## What this is
+- Full mobile UI (Today / Results / Items) — no placeholders
+- All categories + items preloaded (Walk-in, Freezer, Dry Prepped Items)
+- Supabase persists items, PARs, and settings across devices
+- Daily checklist stays local and resets each day
 
-1. Create a free Supabase project at https://supabase.com
-   - In Table Editor, create a table `prep_data` with columns:
-     - id (int8, primary key)
-     - data (jsonb)
-   - Insert one row manually: id = 1, data = {}
+## Setup (one-time)
+1) Supabase project → create table `prep_data` with columns:
+   - id (int8, primary key)
+   - data (jsonb)
+   Insert one row: id = 1, data = {}
+2) In Supabase → Project Settings → API → copy Project URL + anon public key
+3) Open config.js and paste those values inside the quotes
+4) Replace files in your existing GitHub repo with everything in this folder and commit
+5) Netlify redeploys automatically
 
-2. In your Supabase project:
-   - Go to Project Settings → API
-   - Copy your Project URL and anon public key
-
-3. Open config.js in this repo and paste those values inside the quotes.
-
-4. Upload all files in this folder to your existing GitHub repo (replace old files).
-
-5. Netlify will redeploy automatically. Your site will now use Supabase for PARs/items.
-
-- Supabase stores: PARs, items, and settings (shared across devices)
-- Local storage (per device): daily checklist (resets each day)
+## Notes
+- If you ever want to back up or restore: use Export/Import buttons in the app.
+- If the site shows the seed data once, that’s normal — it seeds Supabase the very first time.
